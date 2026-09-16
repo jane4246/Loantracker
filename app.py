@@ -33,6 +33,7 @@ class LoanApplication(db.Model):
     next_action = db.Column(db.Text, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     history = db.relationship("StatusEvent", backref="application", lazy=True, cascade="all, delete-orphan")
+    collateral = db.relationship("CollateralVerification", backref="application", uselist=False, cascade="all, delete-orphan")
 
 
 class StatusEvent(db.Model):
@@ -44,26 +45,57 @@ class StatusEvent(db.Model):
     changed_by = db.Column(db.String(120), nullable=False)
 
 
+class CollateralVerification(db.Model):
+    """Test-only collateral workflow. It never contacts an external land registry."""
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey("loan_application.id"), nullable=False, unique=True)
+    title_number = db.Column(db.String(100), nullable=False)
+    county = db.Column(db.String(100), nullable=False)
+    submitted_owner = db.Column(db.String(160), nullable=False)
+    submitted_size = db.Column(db.String(60), nullable=True)
+    status = db.Column(db.String(40), nullable=False, default="PENDING")
+    customer_status = db.Column(db.String(160), nullable=False, default="Collateral details are awaiting review.")
+    official_search_reference = db.Column(db.String(100), nullable=True)
+    officer_notes = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    events = db.relationship("CollateralEvent", backref="collateral", lazy=True, cascade="all, delete-orphan")
+
+
+class CollateralEvent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    collateral_id = db.Column(db.Integer, db.ForeignKey("collateral_verification.id"), nullable=False)
+    status = db.Column(db.String(40), nullable=False)
+    message = db.Column(db.String(300), nullable=False)
+    changed_by = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 def seed_demo_data():
-    if User.query.first():
-        return
-    customer = User(username="LT-260912-041", password_hash=generate_password_hash("2468"), role="customer", display_name="Mary Wanjiku")
-    customer_two = User(username="LT-260911-018", password_hash=generate_password_hash("1357"), role="customer", display_name="James Otieno")
-    manager = User(username="manager.demo", password_hash=generate_password_hash("Manager2026!"), role="manager", display_name="Demo Branch Manager")
-    db.session.add_all([customer, customer_two, manager])
-    db.session.flush()
-    first = LoanApplication(reference="LT-260912-041", customer=customer, product="Business expansion loan", requested_amount=250000, stage_index=2, next_action="No action is required. A decision update is expected by 16 September 2026.")
-    second = LoanApplication(reference="LT-260911-018", customer=customer_two, product="Asset finance loan", requested_amount=480000, stage_index=1, next_action="Please bring the requested proof of income to the branch or upload it through the approved channel.")
-    db.session.add_all([first, second])
-    db.session.flush()
-    db.session.add_all([
-        StatusEvent(application=first, stage_index=0, message="Application received.", changed_by="System"),
-        StatusEvent(application=first, stage_index=1, message="Documents passed initial checks.", changed_by="Demo Branch Manager"),
-        StatusEvent(application=first, stage_index=2, message="Credit assessment is in progress.", changed_by="Demo Branch Manager"),
-        StatusEvent(application=second, stage_index=0, message="Application received.", changed_by="System"),
-        StatusEvent(application=second, stage_index=1, message="Documents are being checked.", changed_by="Demo Branch Manager"),
-    ])
-    db.session.commit()
+    if not User.query.first():
+        customer = User(username="LT-260912-041", password_hash=generate_password_hash("2468"), role="customer", display_name="Mary Wanjiku")
+        customer_two = User(username="LT-260911-018", password_hash=generate_password_hash("1357"), role="customer", display_name="James Otieno")
+        manager = User(username="manager.demo", password_hash=generate_password_hash("Manager2026!"), role="manager", display_name="Demo Branch Manager")
+        db.session.add_all([customer, customer_two, manager])
+        db.session.flush()
+        first = LoanApplication(reference="LT-260912-041", customer=customer, product="Business expansion loan", requested_amount=250000, stage_index=2, next_action="No action is required. A decision update is expected by 16 September 2026.")
+        second = LoanApplication(reference="LT-260911-018", customer=customer_two, product="Asset finance loan", requested_amount=480000, stage_index=1, next_action="Please bring the requested proof of income to the branch or upload it through the approved channel.")
+        db.session.add_all([first, second])
+        db.session.flush()
+        db.session.add_all([
+            StatusEvent(application=first, stage_index=0, message="Application received.", changed_by="System"),
+            StatusEvent(application=first, stage_index=1, message="Documents passed initial checks.", changed_by="Demo Branch Manager"),
+            StatusEvent(application=first, stage_index=2, message="Credit assessment is in progress.", changed_by="Demo Branch Manager"),
+            StatusEvent(application=second, stage_index=0, message="Application received.", changed_by="System"),
+            StatusEvent(application=second, stage_index=1, message="Documents are being checked.", changed_by="Demo Branch Manager"),
+        ])
+        db.session.commit()
+    first = LoanApplication.query.filter_by(reference="LT-260912-041").first()
+    if first and not first.collateral:
+        collateral = CollateralVerification(application=first, title_number="DEMO/NAIROBI/041", county="Nairobi", submitted_owner="Mary Wanjiku", submitted_size="0.25 hectares", status="PENDING", customer_status="Collateral details are undergoing review.")
+        db.session.add(collateral)
+        db.session.flush()
+        db.session.add(CollateralEvent(collateral=collateral, status="PENDING", message="Test collateral record created. No external land-system request was made.", changed_by="System"))
+        db.session.commit()
 
 
 def current_user():
@@ -143,6 +175,70 @@ def update_application(application_id):
     db.session.add(StatusEvent(application=application, stage_index=new_stage, message=note or f"Status changed to {STAGES[new_stage]}.", changed_by=manager.display_name))
     db.session.commit()
     flash("Demo status updated. Sign in as the customer to see the change.", "success")
+    return redirect(url_for("manager_dashboard", application=application.id))
+
+
+@app.post("/manager/application/<int:application_id>/collateral")
+def update_collateral(application_id):
+    manager = require_role("manager")
+    application = db.get_or_404(LoanApplication, application_id)
+    collateral = application.collateral
+    if not collateral:
+        collateral = CollateralVerification(
+            application=application,
+            title_number=request.form.get("title_number", "").strip()[:100] or "DEMO TITLE REQUIRED",
+            county=request.form.get("county", "").strip()[:100] or "Not recorded",
+            submitted_owner=request.form.get("submitted_owner", "").strip()[:160] or "Not recorded",
+            submitted_size=request.form.get("submitted_size", "").strip()[:60] or None,
+        )
+        db.session.add(collateral)
+    else:
+        collateral.title_number = request.form.get("title_number", "").strip()[:100] or collateral.title_number
+        collateral.county = request.form.get("county", "").strip()[:100] or collateral.county
+        collateral.submitted_owner = request.form.get("submitted_owner", "").strip()[:160] or collateral.submitted_owner
+        collateral.submitted_size = request.form.get("submitted_size", "").strip()[:60] or collateral.submitted_size
+    status = request.form.get("status", "PENDING")
+    allowed = {"PENDING", "SIMULATED_MATCH", "DISCREPANCY", "HOLD"}
+    if status not in allowed:
+        abort(400)
+    collateral.status = status
+    collateral.customer_status = request.form.get("customer_status", "").strip()[:160] or collateral.customer_status
+    collateral.official_search_reference = request.form.get("official_search_reference", "").strip()[:100] or None
+    collateral.officer_notes = request.form.get("officer_notes", "").strip()[:1000] or None
+    db.session.flush()
+    db.session.add(CollateralEvent(
+        collateral=collateral, status=status,
+        message="Test update recorded. This is not an official Ministry of Lands or Ardhisasa verification.",
+        changed_by=manager.display_name,
+    ))
+    db.session.commit()
+    flash("Test collateral status updated. No external land-registry request was sent.", "success")
+    return redirect(url_for("manager_dashboard", application=application.id))
+
+
+@app.post("/manager/application/<int:application_id>/collateral/simulated-search")
+def simulated_land_search(application_id):
+    """Presentation-only response. Never replace this with portal scraping or shared credentials."""
+    manager = require_role("manager")
+    application = db.get_or_404(LoanApplication, application_id)
+    collateral = application.collateral
+    if not collateral:
+        flash("Add the fictional collateral details before running the demonstration search.", "error")
+        return redirect(url_for("manager_dashboard", application=application.id))
+    result = request.form.get("demo_result", "match")
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    collateral.official_search_reference = f"DEMO-ARDHI-{timestamp}"
+    if result == "discrepancy":
+        collateral.status = "DISCREPANCY"
+        collateral.customer_status = "Collateral review requires attention. Please wait for a secure update."
+        event_message = "SIMULATION ONLY: a fictional official-search response reported a discrepancy; officer review is required."
+    else:
+        collateral.status = "SIMULATED_MATCH"
+        collateral.customer_status = "Collateral review is complete and the application is proceeding."
+        event_message = "SIMULATION ONLY: fictional submitted and registry data matched. No external system was contacted."
+    db.session.add(CollateralEvent(collateral=collateral, status=collateral.status, message=event_message, changed_by=manager.display_name))
+    db.session.commit()
+    flash("Ardhisasa integration simulation completed. This result is fictional and no external service was contacted.", "success")
     return redirect(url_for("manager_dashboard", application=application.id))
 
 
