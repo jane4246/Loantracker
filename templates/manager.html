@@ -2,7 +2,7 @@
 {% block content %}
 <div class="eyebrow">Manager demonstration</div>
 <h1 class="title">Application status workspace</h1>
-<p class="sub">Update a fictional application, then sign in as the matching customer to test the progress view.</p>
+<p class="sub">Update then sign in as the matching customer to test the progress view.</p>
 <div class="split">
   <section><div class="card"><strong>Test applications</strong>
     {% for application in applications %}<a class="case" href="{{ url_for('manager_dashboard', application=application.id) }}"><strong>{{ application.customer.display_name }}</strong><br><span class="sub">{{ application.reference }} · {{ stages[application.stage_index] }}</span></a>{% endfor %}
@@ -16,21 +16,21 @@
       </form>
     </div>
     <div class="card"><div class="eyebrow">Ardhisasa integration simulator</div>
-      <p class="notice"><strong>Demonstration only:</strong> this creates a fictional result inside LoanTrack. It does not connect to Ardhisasa, the Ministry of Lands or any government record.</p>
+      <p class="notice"><strong>Demonstration :</strong> this creates a  result inside LoanTrack. It does not connect to Ardhisasa, the Ministry of Lands or any government record.</p>
       {% if active.collateral %}
       <form method="post" action="{{ url_for('simulated_land_search', application_id=active.id) }}"><label>Simulated official-search outcome</label><select name="demo_result"><option value="match">Title, owner and size match</option><option value="discrepancy">Discrepancy found - hold for review</option></select><button class="button">Run simulated official search</button></form>
       {% if active.collateral.status in ['SIMULATED_MATCH', 'DISCREPANCY'] %}
-      <div class="card" style="margin-top:14px"><div class="eyebrow">Fictional registry response - simulation only</div><h3 class="title">{{ 'Verification requires review' if active.collateral.status == 'DISCREPANCY' else 'Details matched in demonstration' }}</h3><p class="help">Generated inside LoanTrack for presentation. It is not an Ardhisasa response and must not be relied upon for lending.</p>
+      <div class="card" style="margin-top:14px"><div class="eyebrow">Registry response - simulation only</div><h3 class="title">{{ 'Verification requires review' if active.collateral.status == 'DISCREPANCY' else 'Details matched in demonstration' }}</h3><p class="help">Generated inside LoanTrack for presentation.</p>
         <table style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr><th style="text-align:left;padding:7px;border-bottom:1px solid #d6e1da">Field</th><th style="text-align:left;padding:7px;border-bottom:1px solid #d6e1da">Submitted</th><th style="text-align:left;padding:7px;border-bottom:1px solid #d6e1da">Demo registry result</th><th style="text-align:left;padding:7px;border-bottom:1px solid #d6e1da">Outcome</th></tr></thead><tbody>
         <tr><td style="padding:7px;border-bottom:1px solid #d6e1da">Title number</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ active.collateral.title_number }}</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ active.collateral.title_number }}</td><td style="padding:7px;border-bottom:1px solid #d6e1da">Match</td></tr>
         <tr><td style="padding:7px;border-bottom:1px solid #d6e1da">Registered owner</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ active.collateral.submitted_owner }}</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ 'Demo owner discrepancy' if active.collateral.status == 'DISCREPANCY' else active.collateral.submitted_owner }}</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ 'Review required' if active.collateral.status == 'DISCREPANCY' else 'Match' }}</td></tr>
         <tr><td style="padding:7px;border-bottom:1px solid #d6e1da">Land size</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ active.collateral.submitted_size or 'Not supplied' }}</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ active.collateral.submitted_size or 'Not supplied' }}</td><td style="padding:7px;border-bottom:1px solid #d6e1da">Match</td></tr>
         <tr><td style="padding:7px;border-bottom:1px solid #d6e1da">Existing charge</td><td style="padding:7px;border-bottom:1px solid #d6e1da">Not declared</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ 'Fictional charge flag' if active.collateral.status == 'DISCREPANCY' else 'No fictional charge flag' }}</td><td style="padding:7px;border-bottom:1px solid #d6e1da">{{ 'Review required' if active.collateral.status == 'DISCREPANCY' else 'Clear in demo' }}</td></tr>
-        </tbody></table><p class="help"><strong>Demo reference:</strong> {{ active.collateral.official_search_reference }} · {{ active.collateral.updated_at.strftime('%d %b %Y, %H:%M') }}</p>
+        </tbody></table><p class="help"><strong>Reference:</strong> {{ active.collateral.official_search_reference }} · {{ active.collateral.updated_at.strftime('%d %b %Y, %H:%M') }}</p>
       </div>{% endif %}
       {% else %}<p class="help">Save the collateral details below first.</p>{% endif %}
     </div>
-    <div class="card"><div class="eyebrow">Collateral & title verification - test workflow</div><p class="help">This is a local simulation. It does not access Ardhisasa, the Ministry of Lands or any government record.</p>
+    <div class="card"><div class="eyebrow">Collateral & title verification - test workflow</div><p class="help">This is a local simulation. </p>
       <form method="post" action="{{ url_for('update_collateral', application_id=active.id) }}">
         <label>Title / parcel number</label><input name="title_number" value="{{ active.collateral.title_number if active.collateral else '' }}" required><label>County</label><input name="county" value="{{ active.collateral.county if active.collateral else '' }}" required><label>Submitted owner name</label><input name="submitted_owner" value="{{ active.collateral.submitted_owner if active.collateral else '' }}" required><label>Submitted land size</label><input name="submitted_size" value="{{ active.collateral.submitted_size if active.collateral and active.collateral.submitted_size else '' }}">
         <label>Test verification status</label><select name="status"><option value="PENDING" {% if active.collateral and active.collateral.status == 'PENDING' %}selected{% endif %}>Pending official verification</option><option value="SIMULATED_MATCH" {% if active.collateral and active.collateral.status == 'SIMULATED_MATCH' %}selected{% endif %}>Demo: simulated match</option><option value="DISCREPANCY" {% if active.collateral and active.collateral.status == 'DISCREPANCY' %}selected{% endif %}>Demo: discrepancy found</option><option value="HOLD" {% if active.collateral and active.collateral.status == 'HOLD' %}selected{% endif %}>Hold for officer review</option></select>
