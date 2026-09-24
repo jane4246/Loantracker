@@ -1,11 +1,11 @@
 {
-  "packageId": "com.yourname.loantrackdemo",
-  "host": "https://loantrack-demo-app.onrender.com/",
+  "packageId": "com.brightfuturesolutions.loantrackdemo",
+  "host": "loantrack-demo-app.onrender.com",
   "name": "LoanTrack Demo",
   "launcherName": "LoanTrack",
   "display": "standalone",
   "themeColor": "#005c3b",
   "navigationColor": "#005c3b",
   "startUrl": "/",
-  "iconUrl": "https://https://loantrack-demo-app.onrender.com//static/icon.svg"
+  "iconUrl": "https://loantrack-demo-app.onrender.com/static/icon.svg"
 }
