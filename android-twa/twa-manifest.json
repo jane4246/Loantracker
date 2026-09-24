@@ -1,6 +1,6 @@
 {
   "packageId": "com.yourname.loantrackdemo",
-  "host": "YOUR-LOANTRACK-URL.onrender.com",
+  "host": "https://loantrack-demo-app.onrender.com/",
   "name": "LoanTrack Demo",
   "launcherName": "LoanTrack",
   "display": "standalone",
