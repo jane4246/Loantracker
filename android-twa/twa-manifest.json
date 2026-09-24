@@ -1,0 +1,11 @@
+{
+  "packageId": "com.yourname.loantrackdemo",
+  "host": "YOUR-LOANTRACK-URL.onrender.com",
+  "name": "LoanTrack Demo",
+  "launcherName": "LoanTrack",
+  "display": "standalone",
+  "themeColor": "#005c3b",
+  "navigationColor": "#005c3b",
+  "startUrl": "/",
+  "iconUrl": "https://YOUR-LOANTRACK-URL.onrender.com/static/icon.svg"
+}
